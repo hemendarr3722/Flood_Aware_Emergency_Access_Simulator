@@ -1,82 +1,113 @@
-import json
-import os
-from contextlib import contextmanager
-from typing import Literal
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from psycopg import connect
-from psycopg.rows import dict_row
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import JSONResponse
 
-app = FastAPI(title="Flood-Aware Emergency Access API", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=[x.strip() for x in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")], allow_methods=["GET"], allow_headers=["*"])
+from backend.app.core.config import settings
+from backend.app.core.database import db, fetch_all, fetch_one
+from backend.app.core.logging import RequestIdMiddleware, logger
+from backend.app.repository.routing_repo import build_ordered_linestring as _build_ordered_linestring
+from backend.app.routers import (
+    health_router,
+    study_areas_router,
+    facilities_router,
+    roads_router,
+    scenarios_router,
+    routes_router,
+)
 
-@contextmanager
-def db():
-    dsn = os.getenv("DATABASE_URL")
-    if not dsn:
-        raise HTTPException(503, "DATABASE_URL is not configured")
-    try:
-        with connect(dsn, row_factory=dict_row, connect_timeout=8) as conn:
-            with conn.cursor() as cur:
-                cur.execute("set statement_timeout = '8s'")
-            yield conn
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(503, "Database unavailable") from exc
+tags_metadata = [
+    {
+        "name": "System",
+        "description": "Liveness and readiness probes checking PostGIS/pgRouting health.",
+    },
+    {
+        "name": "Study Areas",
+        "description": "Geographic analysis extents, bounding boxes, and summary metrics.",
+    },
+    {
+        "name": "Facilities",
+        "description": "Emergency facilities (hospitals, fire stations, shelters) with curation status.",
+    },
+    {
+        "name": "Roads",
+        "description": "Road network edges with speed limits, travel costs, and spatial filtering.",
+    },
+    {
+        "name": "Scenarios",
+        "description": "Baseline and flood hazard scenarios, affected road segments, and population accessibility impacts.",
+    },
+    {
+        "name": "Routing",
+        "description": "Dijkstra point-to-point and nearest-facility routing with detour comparison.",
+    },
+]
 
-def fetch_all(query, params=()):
-    with db() as conn:
-        return conn.execute(query, params).fetchall()
+app = FastAPI(
+    title=settings.API_TITLE,
+    version=settings.API_VERSION,
+    description=settings.API_DESCRIPTION,
+    openapi_tags=tags_metadata,
+)
 
-@app.get("/api/health")
-def health():
-    return {"status": "ok", "database_configured": bool(os.getenv("DATABASE_URL"))}
+# 1. Request ID and structured request logger middleware
+app.add_middleware(RequestIdMiddleware)
 
-@app.get("/api/study-areas")
-def study_areas():
-    return fetch_all("select id,name from gis.study_areas order by id")
+# 2. CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
-@app.get("/api/facilities")
-def facilities(area_id: int=Query(ge=1), facility_type: Literal["hospital", "shelter", "fire_station"] | None=None):
-    rows=fetch_all("""select id,name,facility_type,is_active,road_node_id,
-      extensions.st_y(geom) lat,extensions.st_x(geom) lon
-      from gis.facilities where area_id=%s and (%s::text is null or facility_type=%s)
-      order by name limit 500""",(area_id,facility_type,facility_type))
-    return rows
 
-@app.get("/api/scenarios")
-def scenarios(area_id: int=Query(ge=1)):
-    return fetch_all("select id,name,description,threshold_m,status from gis.flood_scenarios where area_id=%s order by id",(area_id,))
+# 3. Standardized error envelope handlers
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    req_id = getattr(request.state, "request_id", None)
+    code = "VALIDATION_ERROR" if exc.status_code == 422 else f"HTTP_{exc.status_code}"
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "error": {
+                "code": code,
+                "message": exc.detail,
+                "request_id": req_id,
+            },
+        },
+    )
 
-@app.get("/api/roads")
-def roads(area_id: int=Query(ge=1), limit:int=Query(1000,ge=1,le=3000)):
-    rows=fetch_all("""select id,extensions.st_asgeojson(geom) geometry from gis.road_edges
-      where area_id=%s order by id limit %s""",(area_id,limit))
-    return {"type":"FeatureCollection","features":[{"type":"Feature","properties":{"id":r["id"]},"geometry":json.loads(r["geometry"])} for r in rows]}
 
-@app.get("/api/scenarios/{scenario_id}/closed-roads")
-def closed_roads(scenario_id: int):
-    rows=fetch_all("""select e.id,i.depth_m,extensions.st_asgeojson(e.geom) geometry
-       from gis.scenario_edge_impacts i join gis.road_edges e on e.id=i.edge_id
-       where i.scenario_id=%s and i.is_closed limit 3000""",(scenario_id,))
-    return {"type":"FeatureCollection","features":[{"type":"Feature","properties":{"id":r["id"],"depth_m":r["depth_m"]},"geometry":json.loads(r["geometry"])} for r in rows]}
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    req_id = getattr(request.state, "request_id", None)
+    errors = exc.errors()
+    msg = "; ".join(f"{e.get('loc', [])}: {e.get('msg')}" for e in errors)
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": msg,
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": msg,
+                "details": errors,
+                "request_id": req_id,
+            },
+        },
+    )
 
-@app.get("/api/routes")
-def route(origin_node_id: int=Query(ge=1), destination_node_id: int=Query(ge=1), scenario_id: int | None=Query(default=None,ge=1)):
-    with db() as conn:
-        rows=conn.execute("select seq,path_seq,node,edge,cost,agg_cost from gis.route_edges(%s,%s,%s)",(origin_node_id,destination_node_id,scenario_id)).fetchall()
-        ids=[r["edge"] for r in rows if r["edge"]>=0]
-        if not ids:
-            return {"reachable": origin_node_id==destination_node_id,"travel_time_s":0 if origin_node_id==destination_node_id else None,"geometry":None}
-        segments=conn.execute("select id,extensions.st_asgeojson(geom) geometry from gis.road_edges where id=any(%s)",(ids,)).fetchall()
-    return {"reachable":True,"travel_time_s":sum(r["cost"] for r in rows if r["edge"]>=0),"geometry":{"type":"GeometryCollection","geometries":[json.loads(r["geometry"]) for r in segments]}}
 
-@app.get("/api/scenarios/{scenario_id}/impact")
-def impact(scenario_id:int):
-    rows=fetch_all("""select count(*) origin_count,coalesce(sum(population),0) population,
-        coalesce(sum(population) filter(where not reachable),0) unreachable_population,
-        coalesce(sum(population) filter(where travel_time_s > 900 or not reachable),0) beyond_15min_population
-        from gis.scenario_accessibility where scenario_id=%s""",(scenario_id,))
-    return rows[0]
+# 4. Mount API routers
+app.include_router(health_router)
+app.include_router(study_areas_router)
+app.include_router(facilities_router)
+app.include_router(roads_router)
+app.include_router(scenarios_router)
+app.include_router(routes_router)
+
+# Re-export key database utilities for backward compatibility
+__all__ = ["app", "db", "fetch_all", "fetch_one", "_build_ordered_linestring"]

@@ -5,9 +5,12 @@ __pycache__/
 .venv/
 node_modules/
 dist/
+data/raw/
+data/processed/
 *.tif
 *.tiff
 *.gpkg
 *.csv
 master_prompt.md
+IMPLEMENTATION_STATUS.md
 

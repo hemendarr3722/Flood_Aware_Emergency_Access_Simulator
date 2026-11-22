@@ -1,21 +1,15 @@
-import React,{useEffect,useRef,useState} from 'react';
-import {createRoot} from 'react-dom/client';
-import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { App } from './App';
 import './style.css';
-const API=import.meta.env.VITE_API_URL||'http://localhost:8000';
-type Area={id:number,name:string};type Scenario={id:number,name:string,status:string,threshold_m:number};
-const emptyGeo={type:'FeatureCollection',features:[]};
-function App(){
- const container=useRef<HTMLDivElement>(null);const map=useRef<maplibregl.Map|null>(null);
- const [areas,setAreas]=useState<Area[]>([]);const [area,setArea]=useState<number|undefined>();
- const [scenarios,setScenarios]=useState<Scenario[]>([]);const [scenario,setScenario]=useState<number|undefined>();
- const [message,setMessage]=useState('Connect an empty dedicated Supabase project and ingest Houston data to begin.');
- const [impact,setImpact]=useState<any>(null);
- useEffect(()=>{if(!container.current)return;const m=new maplibregl.Map({container:container.current,style:'https://demotiles.maplibre.org/style.json',center:[-95.384,29.76],zoom:12});m.addControl(new maplibregl.NavigationControl());m.on('load',()=>{m.addSource('roads',{type:'geojson',data:emptyGeo as any});m.addLayer({id:'roads',type:'line',source:'roads',paint:{'line-color':'#64748b','line-width':1.8}});m.addSource('closed',{type:'geojson',data:emptyGeo as any});m.addLayer({id:'closed',type:'line',source:'closed',paint:{'line-color':'#ef4444','line-width':4}})});map.current=m;return()=>{m.remove();map.current=null}},[]);
- useEffect(()=>{fetch(`${API}/api/study-areas`).then(r=>{if(!r.ok)throw Error('API unavailable');return r.json()}).then((data:Area[])=>{setAreas(data);if(data.length)setArea(data[0].id);else setMessage('No study areas loaded yet. Run offline OSM ingestion after creating a dedicated database.')}).catch(()=>setMessage('API is not connected. Start FastAPI locally or configure VITE_API_URL.'))},[]);
- useEffect(()=>{if(!area)return;Promise.all([fetch(`${API}/api/scenarios?area_id=${area}`).then(r=>r.json()),fetch(`${API}/api/roads?area_id=${area}`).then(r=>r.json())]).then(([sc,roads])=>{setScenarios(sc);setScenario(undefined);if(map.current?.isStyleLoaded())(map.current.getSource('roads') as maplibregl.GeoJSONSource).setData(roads);setMessage('Showing loaded roads. Choose a processed flood scenario to see closures.')}).catch(()=>setMessage('Failed to load study area datasets.'))},[area]);
- useEffect(()=>{if(!scenario){setImpact(null);if(map.current?.isStyleLoaded())(map.current.getSource('closed') as maplibregl.GeoJSONSource).setData(emptyGeo as any);return};Promise.all([fetch(`${API}/api/scenarios/${scenario}/closed-roads`).then(r=>r.json()),fetch(`${API}/api/scenarios/${scenario}/impact`).then(r=>r.json())]).then(([geo,impact])=>{if(map.current?.isStyleLoaded())(map.current.getSource('closed') as maplibregl.GeoJSONSource).setData(geo);setImpact(impact);setMessage('Scenario results loaded. Red segments are modeled closures, not real-time road reports.')}).catch(()=>setMessage('Failed to load scenario results.'))},[scenario]);
- return <div className="app"><aside><h1>Flood-Aware Access</h1><p className="sub">Houston pilot · GIS simulation</p><label>Study area</label><select value={area??''} onChange={e=>setArea(Number(e.target.value))}><option value="">Select study area</option>{areas.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select><label>Flood scenario</label><select value={scenario??''} onChange={e=>setScenario(e.target.value?Number(e.target.value):undefined)}><option value="">Baseline</option>{scenarios.map(s=><option key={s.id} value={s.id}>{s.name} ({s.threshold_m} m)</option>)}</select><section><h2>Accessibility impact</h2><div className="stat"><span>Population evaluated</span><strong>{impact?.population?.toLocaleString()??'—'}</strong></div><div className="stat"><span>Unreachable population</span><strong>{impact?.unreachable_population?.toLocaleString()??'—'}</strong></div><div className="stat"><span>Beyond 15 min / unreachable</span><strong>{impact?.beyond_15min_population?.toLocaleString()??'—'}</strong></div></section><p className="notice">{message}</p><small>Planning demonstration only. Never use as operational emergency navigation guidance.</small></aside><main ref={container} aria-label="Houston flood access map"/></div>
+
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error('Failed to find root DOM element');
 }
-createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>);
+
+createRoot(rootElement).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);

@@ -1,0 +1,110 @@
+[
+  {
+    "name": "Health (shallow)",
+    "path": "/api/health",
+    "min_ms": 4.1,
+    "p50_ms": 4.78,
+    "p95_ms": 5.75,
+    "mean_ms": 4.93,
+    "max_ms": 8.08
+  },
+  {
+    "name": "Readiness (deep db)",
+    "path": "/api/readiness",
+    "min_ms": 22.27,
+    "p50_ms": 27.46,
+    "p95_ms": 57.74,
+    "mean_ms": 33.71,
+    "max_ms": 58.38
+  },
+  {
+    "name": "Study Area Summary",
+    "path": "/api/study-areas/1/summary",
+    "min_ms": 96.2,
+    "p50_ms": 128.97,
+    "p95_ms": 167.49,
+    "mean_ms": 131.53,
+    "max_ms": 175.32
+  },
+  {
+    "name": "Facilities List",
+    "path": "/api/facilities?area_id=1&status=all",
+    "min_ms": 29.31,
+    "p50_ms": 31.96,
+    "p95_ms": 71.07,
+    "mean_ms": 38.17,
+    "max_ms": 71.58
+  },
+  {
+    "name": "Roads (1000 features)",
+    "path": "/api/roads?area_id=1&limit=1000",
+    "min_ms": 43.04,
+    "p50_ms": 61.07,
+    "p95_ms": 86.79,
+    "mean_ms": 62.3,
+    "max_ms": 98.95
+  },
+  {
+    "name": "Roads (Bbox filter)",
+    "path": "/api/roads?area_id=1&bbox=-95.375,29.745,-95.350,29.765",
+    "min_ms": 42.05,
+    "p50_ms": 51.8,
+    "p95_ms": 86.4,
+    "mean_ms": 58.58,
+    "max_ms": 95.66
+  },
+  {
+    "name": "Affected Roads (SFHA)",
+    "path": "/api/scenarios/2/affected-roads",
+    "min_ms": 53.56,
+    "p50_ms": 68.31,
+    "p95_ms": 111.9,
+    "mean_ms": 73.37,
+    "max_ms": 123.82
+  },
+  {
+    "name": "Scenario Impact (15m)",
+    "path": "/api/scenarios/2/impact?threshold_minutes=15",
+    "min_ms": 59.17,
+    "p50_ms": 78.42,
+    "p95_ms": 113.63,
+    "mean_ms": 79.83,
+    "max_ms": 114.45
+  },
+  {
+    "name": "Accessibility Origins",
+    "path": "/api/scenarios/2/accessibility-origins?threshold_minutes=15",
+    "min_ms": 45.48,
+    "p50_ms": 52.23,
+    "p95_ms": 95.84,
+    "mean_ms": 60.09,
+    "max_ms": 98.89
+  },
+  {
+    "name": "Point-to-Point Route",
+    "path": "/api/routes?origin_node_id=151635251&destination_node_id=152272624&scenario_id=2",
+    "min_ms": 31.9,
+    "p50_ms": 38.08,
+    "p95_ms": 72.74,
+    "mean_ms": 45.99,
+    "max_ms": 77.31
+  },
+  {
+    "name": "Nearest Hospital Route",
+    "path": "/api/routes?origin_node_id=151461824&facility_type=hospital&scenario_id=2",
+    "min_ms": 35.4,
+    "p50_ms": 60.43,
+    "p95_ms": 125.19,
+    "mean_ms": 63.06,
+    "max_ms": 143.06
+  },
+  {
+    "name": "Compare Routes",
+    "path": "/api/compare/routes?origin_node_id=151635251&destination_node_id=152272624&scenario_id=2",
+    "min_ms": 66.61,
+    "p50_ms": 98.48,
+    "p95_ms": 154.05,
+    "mean_ms": 106.02,
+    "max_ms": 156.62
+  }
+]

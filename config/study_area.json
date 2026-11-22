@@ -1,0 +1,12 @@
+{
+  "name": "Downtown Houston Pilot",
+  "place_query": "Downtown, Houston, Harris County, Texas, United States",
+  "analysis_bbox_wgs84": [-95.45, 29.68, -95.25, 29.85],
+  "fim_discovery_bbox_wgs84": [-95.8, 29.4, -94.9, 30.2],
+  "state_fips": "48",
+  "county_fips": "201",
+  "acs_year": 2024,
+  "interchange_crs": "EPSG:4326",
+  "analysis_crs": "EPSG:26915",
+  "analysis_crs_justification": "NAD83 / UTM zone 15N uses meters and covers Houston, making it suitable for local distance, snapping, and raster operations."
+}
