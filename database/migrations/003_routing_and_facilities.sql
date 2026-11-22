@@ -20,7 +20,7 @@ returns table(
 )
 language plpgsql
 security invoker
-set search_path = public, gis
+set search_path = extensions, public, gis
 as $fn$
 begin
   return query
@@ -68,11 +68,11 @@ returns table(
 )
 language plpgsql
 security invoker
-set search_path = public, gis
+set search_path = extensions, public, gis
 as $fn$
 begin
   return query
-  select d.seq, d.path_seq, d.start_vid, d.end_vid, d.node, d.edge, d.cost, d.agg_cost
+  select d.seq, d.path_seq, p_start as start_vid, d.end_vid, d.node, d.edge, d.cost, d.agg_cost
   from pgr_dijkstra(
     format(
       $q$select e.id, e.source, e.target,
@@ -116,7 +116,7 @@ returns table(
 )
 language plpgsql
 security invoker
-set search_path = public, gis
+set search_path = extensions, public, gis
 as $fn$
 declare
   v_target_nodes bigint[];

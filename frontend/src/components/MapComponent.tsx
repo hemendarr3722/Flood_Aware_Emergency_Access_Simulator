@@ -21,28 +21,30 @@ interface MapComponentProps {
 
 const emptyFC = { type: 'FeatureCollection', features: [] };
 
-const cartoStyle: maplibregl.StyleSpecification = {
+const osmStyle: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    'carto-positron': {
+    'osm-tiles': {
       type: 'raster',
       tiles: [
-        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       ],
       tileSize: 256,
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+      maxzoom: 19,
     },
   },
   layers: [
     {
-      id: 'carto-positron-layer',
+      id: 'osm-tiles-layer',
       type: 'raster',
-      source: 'carto-positron',
+      source: 'osm-tiles',
       minzoom: 0,
-      maxzoom: 20,
+      maxzoom: 19,
+      paint: {
+        'raster-opacity': 0.88,
+      },
     },
   ],
 };
@@ -66,7 +68,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: cartoStyle,
+      style: osmStyle,
       center: [-95.365, 29.755], // Downtown Houston Pilot center
       zoom: 14,
     });
@@ -87,9 +89,9 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         type: 'line',
         source: 'roads-source',
         paint: {
-          'line-color': '#94a3b8',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.5, 16, 3],
-          'line-opacity': 0.8,
+          'line-color': '#475569',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 12, 2, 16, 4],
+          'line-opacity': 0.75,
         },
       });
 
@@ -103,10 +105,10 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         type: 'line',
         source: 'affected-roads-source',
         paint: {
-          'line-color': '#dc2626',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 12, 3.5, 16, 6],
-          'line-dasharray': [2, 1],
-          'line-opacity': 0.9,
+          'line-color': '#ef4444',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 12, 4, 16, 7],
+          'line-dasharray': [3, 2],
+          'line-opacity': 0.95,
         },
       });
 
