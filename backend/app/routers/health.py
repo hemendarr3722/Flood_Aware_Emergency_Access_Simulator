@@ -1,9 +1,20 @@
+from urllib.parse import urlparse
 from fastapi import APIRouter, HTTPException
 from backend.app.core.config import settings
 from backend.app.core.database import db
 from backend.app.schemas.common import HealthResponse, ReadinessResponse
 
 router = APIRouter(tags=["System"])
+
+
+def _mask_target(dsn: str | None) -> str | None:
+    if not dsn:
+        return None
+    try:
+        p = urlparse(dsn)
+        return f"{p.hostname}:{p.port}"
+    except Exception:
+        return "unparseable"
 
 
 @router.get(
@@ -16,6 +27,7 @@ def health():
     return {
         "status": "ok",
         "database_configured": bool(settings.DATABASE_URL),
+        "db_target": _mask_target(settings.DATABASE_URL),
     }
 
 

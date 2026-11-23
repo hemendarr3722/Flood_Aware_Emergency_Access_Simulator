@@ -21,6 +21,7 @@ class GeoJSONFeatureCollection(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     database_configured: bool
+    db_target: str | None = None
 
 
 class ReadinessResponse(BaseModel):
