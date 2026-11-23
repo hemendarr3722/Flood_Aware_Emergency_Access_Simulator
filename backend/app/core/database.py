@@ -25,8 +25,11 @@ def db():
             row_factory=dict_row,
             connect_timeout=settings.CONNECT_TIMEOUT_S,
         ) as conn:
-            with conn.cursor() as cur:
-                cur.execute(f"set statement_timeout = '{settings.STATEMENT_TIMEOUT_MS}ms'")
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(f"set statement_timeout = '{settings.STATEMENT_TIMEOUT_MS}ms'")
+            except Exception:
+                pass  # Graceful fallback for poolers in transaction mode
             yield conn
     except HTTPException:
         raise
